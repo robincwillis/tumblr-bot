@@ -1,0 +1,24 @@
+{
+  "statePath": "state.json",
+  "sources": {
+    "main": { "type": "local", "path": "/Users/you/Pictures" }
+  },
+  "destinations": {
+    "outbox": { "path": "outbox" },
+    "tumblr": {
+      "blog": "yourblog.tumblr.com",
+      "consumer_key": "$TUMBLR_CONSUMER_KEY",
+      "consumer_secret": "$TUMBLR_CONSUMER_SECRET",
+      "token": "$TUMBLR_TOKEN",
+      "token_secret": "$TUMBLR_TOKEN_SECRET"
+    },
+    "bluesky": { "identifier": "you.bsky.social", "appPassword": "$BSKY_APP_PASSWORD" },
+    "mastodon": { "instance": "https://mastodon.social", "accessToken": "$MASTODON_TOKEN" },
+    "instagram": { "igUserId": "$IG_USER_ID", "accessToken": "$IG_ACCESS_TOKEN" },
+    "googlephotos": {
+      "clientId": "$GOOGLE_CLIENT_ID",
+      "clientSecret": "$GOOGLE_CLIENT_SECRET",
+      "refreshToken": "$GOOGLE_REFRESH_TOKEN"
+    }
+  }
+}

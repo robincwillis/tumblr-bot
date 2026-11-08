@@ -1,20 +1,24 @@
 {
-  "name": "tumblr_bot",
-  "version": "0.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "author": "",
+  "name": "photobot",
+  "version": "1.0.0",
+  "description": "Search a personal photo collection and post to Tumblr, Instagram, Google Photos, Bluesky, Mastodon and more. Exposed as agent tools (MCP), an HTTP API and a CLI.",
+  "type": "module",
   "license": "ISC",
-  "dependencies": {
-    "underscore": "^1.8.3"
+  "engines": {
+    "node": ">=20"
   },
-  "devDependencies": {
-    "crypto": "0.0.3",
-    "mime": "^1.3.4",
-    "oath": "^1.0.0",
-    "oauth": "^0.9.13"
+  "bin": {
+    "photobot": "src/cli.js"
+  },
+  "scripts": {
+    "cli": "node src/cli.js",
+    "mcp": "node src/mcp.js",
+    "http": "node src/http.js",
+    "test": "node --test \"test/*.test.js\""
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "tumblr.js": "^5.0.1",
+    "zod": "^4.6.7"
   }
 }

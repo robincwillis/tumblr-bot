@@ -1,0 +1,5 @@
+{
+  "mcpServers": {
+    "photobot": { "command": "node", "args": ["src/mcp.js"] }
+  }
+}

@@ -1,7 +1,6 @@
-logs
-*.log
-build/Release
 node_modules
-blacklist.json
-config.js
-posted.json
+photobot.config.json
+state.json
+outbox/
+.env
+*.log
