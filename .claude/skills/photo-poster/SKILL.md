@@ -14,7 +14,12 @@ tools as `node src/cli.js <tool> --flag value` from the repo root — output is 
    block list. If a destination appears under `misconfiguredDestinations`, tell the user what
    credential is missing instead of trying it. Call `list_tags` if you need to know what's in
    the collection — tags are derived from folder names (`Trips/Japan/2019` → trips, japan, 2019).
-2. **Find candidates.** `search_photos` for specific requests ("the ramen shots from Japan"),
+2. **Find candidates.** If the user describes what the photo *looks like* ("a dog on a beach",
+   "moody street at night", "more like this one"), use `find_photos_by_content`. If it reports
+   `unindexed` photos or returns nothing, run `index_photos` (repeat until `remaining` is 0; the
+   first run is slow, so tell the user) and retry. Scores are only good for ranking, so always
+   `view_photo` the top few to confirm before picking. For path/folder/date requests
+   ("the ramen shots from Japan") use `search_photos`;
    `random_photos` for "surprise me". Pass `notPostedTo: "<destination>"` so you don't repeat
    yourself. Results are metadata only.
 3. **Look before you post.** `view_photo` returns the actual image. Check it is a good,

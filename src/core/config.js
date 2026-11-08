@@ -8,6 +8,9 @@ import path from 'node:path';
  */
 export const DEFAULTS = {
   statePath: 'state.json',
+  indexPath: 'vectors.json',
+  cacheSeconds: 60, // how long a scan of the sources is reused; raise for Dropbox
+  embedding: { model: 'Xenova/clip-vit-base-patch32' },
   fileTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/tiff'],
   sources: {},
   destinations: {},
@@ -37,8 +40,9 @@ export function loadConfig(file = process.env.PHOTOBOT_CONFIG || 'photobot.confi
   const cfg = { ...DEFAULTS, ...interpolate(raw) };
   const base = path.dirname(resolved);
   cfg.statePath = path.resolve(base, cfg.statePath);
+  cfg.indexPath = path.resolve(base, cfg.indexPath);
   // Relative paths in the file are relative to the file, not the cwd.
-  for (const s of Object.values(cfg.sources)) if (s.path) s.path = path.resolve(base, s.path);
+  for (const s of Object.values(cfg.sources)) if (s.path && (s.type ?? 'local') === 'local') s.path = path.resolve(base, s.path);
   for (const [name, d] of Object.entries(cfg.destinations)) {
     if ((d.type ?? name) === 'outbox') d.path = path.resolve(base, d.path ?? 'outbox');
   }

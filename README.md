@@ -6,8 +6,8 @@ a small toolkit with three interchangeable front doors over one core:
 
 ```
  sources ──►  PhotoBot core  ──► destinations
- local folders   search · random · dedupe · block · history     tumblr · instagram · bluesky
- (add your own)                                                mastodon · googlephotos · outbox
+ local folders   search · visual search · random · dedupe     tumblr · instagram · bluesky
+ dropbox         block · history                              mastodon · googlephotos · outbox
                      ▲
         one tool registry (src/tools.js)
         ┌────────────┼─────────────┐
@@ -55,6 +55,37 @@ curl -H 'Authorization: Bearer secret' localhost:8080/openapi.json
 curl -H 'Authorization: Bearer secret' -d '{"tags":["food"]}' localhost:8080/tools/random_photos
 ```
 
+## Sources
+
+| Type | Config | Notes |
+|---|---|---|
+| `local` | `path` | Recursively scans a folder. |
+| `dropbox` | `path`, plus `appKey`/`appSecret`/`refreshToken` (or a short-lived `accessToken`) | Create an app at dropbox.com/developers/apps with scopes `files.metadata.read` and `files.content.read`, then get a refresh token via the OAuth code flow with `token_access_type=offline`. Listing a big Dropbox is slow, so set `"cacheSeconds": 600`. Indexing uses Dropbox's small thumbnails, so originals are only downloaded when you view or post a photo. |
+
+## Searching by what's in the photo
+
+`find_photos_by_content` takes a description (`"dog on a beach"`, `"red door at night"`) and/or
+`similarTo` a photo id, and ranks photos by visual similarity. It combines with every other
+filter (`tags`, `folder`, `after`, `notPostedTo`, …) and never returns blocked photos.
+
+It uses CLIP, run **locally** through `@huggingface/transformers` (an optional dependency;
+no API key, and your photos are never uploaded). Build the index first, in batches:
+
+```sh
+node src/cli.js index_photos --limit 500       # repeat until "remaining": 0
+node src/cli.js find_photos_by_content --text "sunset over water" --notPostedTo bluesky
+node src/cli.js find_photos_by_content --similarTo <id>
+```
+
+The first run downloads the model (~150 MB, from huggingface.co) and embeds on CPU, roughly
+0.1–0.5 s per photo, so a large library takes a while once. After that only new or changed
+photos are processed. Vectors live in `vectors.json` (gitignored); changing
+`embedding.model` rebuilds them. To use a different provider, implement
+`{ model, embedText, embedImage }` (see `src/embeddings/clip.js`).
+
+CLIP is good at objects, scenes and colours, and weak at counting, reading text and fine
+detail, so the skill has Claude confirm top hits with `view_photo`.
+
 ## Destinations
 
 | Type | Needs | Notes |
@@ -83,10 +114,11 @@ curl -H 'Authorization: Bearer secret' -d '{"tags":["food"]}' localhost:8080/too
 
 - **New destination**: add a class with `post({asset, bytes, caption, tags, altText}) → {id, url}`
   and `limits`, register it in `src/destinations/index.js`.
-- **New source** (Dropbox, S3, Immich…): implement `list({fileTypes})` and `read(asset)` like
-  `src/sources/local.js`, register in `src/sources/index.js`.
+- **New source** (S3, Immich…): implement `list({fileTypes})` and `read(asset)` (and optionally a
+  cheap `thumbnail(asset)`) like `src/sources/dropbox.js`; register in `src/sources/index.js`.
 - **New tool**: add an entry to `src/tools.js`; it shows up in MCP, HTTP and CLI automatically.
 
 ## Tests
 
-`npm test` (Node ≥ 20, no network needed).
+`npm test` (Node ≥ 20, no network needed). Image search is tested with a fake embedder and
+Dropbox with a mocked API; **neither the real CLIP model nor the live Dropbox API has been run.**

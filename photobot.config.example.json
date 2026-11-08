@@ -1,8 +1,16 @@
 {
   "statePath": "state.json",
   "sources": {
-    "main": { "type": "local", "path": "/Users/you/Pictures" }
+    "main": { "type": "local", "path": "/Users/you/Pictures" },
+    "dropbox": {
+      "type": "dropbox",
+      "path": "/Life/Photos",
+      "appKey": "$DROPBOX_APP_KEY",
+      "appSecret": "$DROPBOX_APP_SECRET",
+      "refreshToken": "$DROPBOX_REFRESH_TOKEN"
+    }
   },
+  "cacheSeconds": 600,
   "destinations": {
     "outbox": { "path": "outbox" },
     "tumblr": {

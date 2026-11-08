@@ -2,16 +2,18 @@ import crypto from 'node:crypto';
 import { State } from './state.js';
 import { createSources } from '../sources/index.js';
 import { createDestinations } from '../destinations/index.js';
-
-const INDEX_TTL_MS = 60_000;
+import { VectorStore } from '../embeddings/store.js';
+import { ClipEmbedder, cosine } from '../embeddings/clip.js';
 
 /**
  * PhotoBot is the one place that knows how to search, pick, check and post photos.
  * The CLI, the HTTP API and the MCP server are thin wrappers around these methods.
  */
 export class PhotoBot {
-  constructor(config, { publicUrlFor } = {}) {
+  constructor(config, { publicUrlFor, embedder } = {}) {
     this.config = config;
+    this._embedder = embedder;
+    this._store = null;
     this.state = new State(config.statePath);
     this.sources = createSources(config);
     const { destinations, errors } = createDestinations(config, { config, publicUrlFor });
@@ -31,7 +33,7 @@ export class PhotoBot {
   }
 
   async #assets(refresh = false) {
-    if (!refresh && this._index && Date.now() - this._index.at < INDEX_TTL_MS) return this._index.assets;
+    if (!refresh && this._index && Date.now() - this._index.at < this.config.cacheSeconds * 1000) return this._index.assets;
     const lists = await Promise.all(Object.values(this.sources).map((s) => s.list({ fileTypes: this.config.fileTypes })));
     const assets = lists.flat();
     this._index = { at: Date.now(), assets };
@@ -55,7 +57,7 @@ export class PhotoBot {
    * source, after/before (ISO date on file modified time), notPostedTo (destination),
    * includeBlocked, sort: random | newest | oldest | name, limit, offset.
    */
-  async search(f = {}) {
+  async #filter(f) {
     let assets = await this.#assets(f.refresh);
     const words = (f.query ?? '').toLowerCase().split(/\s+/).filter(Boolean);
     const tags = (f.tags ?? []).map((t) => t.toLowerCase());
@@ -75,6 +77,11 @@ export class PhotoBot {
       if (f.notPostedTo && this.state.wasPosted({ id: a.id }, f.notPostedTo)) return false;
       return true;
     });
+    return assets;
+  }
+
+  async search(f = {}) {
+    let assets = await this.#filter(f);
 
     const sort = f.sort ?? 'name';
     if (sort === 'random') assets = shuffle(assets);
@@ -108,6 +115,74 @@ export class PhotoBot {
     const asset = this.#byId(await this.#assets(), id);
     const bytes = await this.sources[asset.source].read(asset);
     return { asset: this.decorate(asset), bytes };
+  }
+
+  // ---------- visual search ----------
+
+  get embedder() { return (this._embedder ??= new ClipEmbedder(this.config.embedding)); }
+
+  get store() { return (this._store ??= new VectorStore(this.config.indexPath, this.embedder.model)); }
+
+  /**
+   * Embed photos that are new or changed. Works in batches (default 200) so a call
+   * stays short; call again until `remaining` is 0. Individual failures (corrupt or
+   * undecodable files) are reported and skipped, and retried on the next run.
+   */
+  async indexPhotos({ source, limit = 200, refresh = true } = {}) {
+    const all = (await this.#assets(refresh)).filter((a) => !source || a.source === source);
+    const todo = all.filter((a) => !this.store.get(a));
+    const batch = todo.slice(0, limit);
+    const failed = [];
+    let done = 0;
+    for (const a of batch) {
+      try {
+        const src = this.sources[a.source];
+        const bytes = src.thumbnail ? await src.thumbnail(a) : await src.read(a);
+        this.store.set(a, await this.embedder.embedImage(bytes));
+        if (++done % 25 === 0) this.store.save();
+      } catch (e) {
+        failed.push({ path: `${a.source}:${a.path}`, error: e.message });
+      }
+    }
+    if (done) this.store.save();
+    return { total: all.length, indexed: all.length - todo.length + done, newlyIndexed: done, failed, remaining: todo.length - done - failed.length };
+  }
+
+  /**
+   * Rank photos by what they look like. Give `text` ("dog on a beach", "red door at night")
+   * and/or `similarTo` (a photo id). All the usual filters apply. Photos not yet indexed
+   * are skipped and counted in `unindexed`.
+   */
+  async visualSearch({ text, similarTo, limit = 20, minScore, ...filters }) {
+    if (!text && !similarTo) throw new Error('Give text and/or similarTo');
+    const candidates = await this.#filter(filters);
+    const queries = [];
+    if (text) queries.push(await this.embedder.embedText(text));
+    if (similarTo) {
+      const ref = this.#byId(await this.#assets(), similarTo);
+      let v = this.store.get(ref);
+      if (!v) {
+        const src = this.sources[ref.source];
+        v = await this.embedder.embedImage(src.thumbnail ? await src.thumbnail(ref) : await src.read(ref));
+        this.store.set(ref, v); this.store.save();
+      }
+      queries.push(v);
+    }
+    const scored = [];
+    let unindexed = 0;
+    for (const a of candidates) {
+      if (a.id === similarTo) continue;
+      const v = this.store.get(a);
+      if (!v) { unindexed++; continue; }
+      const score = queries.reduce((sum, q) => sum + cosine(q, v), 0) / queries.length;
+      if (minScore === undefined || score >= minScore) scored.push({ a, score });
+    }
+    scored.sort((x, y) => y.score - x.score);
+    return {
+      matched: scored.length, unindexed,
+      note: unindexed ? `${unindexed} matching photos are not indexed yet; run index_photos to include them` : undefined,
+      photos: scored.slice(0, limit).map(({ a, score }) => ({ ...this.decorate(a), score: Math.round(score * 1000) / 1000 })),
+    };
   }
 
   // ---------- posting ----------

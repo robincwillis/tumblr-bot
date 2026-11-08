@@ -12,7 +12,9 @@ export const mimeFor = (file) => MIME[path.extname(file).toLowerCase()];
 /**
  * A Source lists photos and reads their bytes. Implement { name, list(), read(asset) }
  * to add Dropbox, S3, an Immich server, etc. Asset shape:
- *   { id, source, path (source-relative), name, mime, size, modified (ISO), folder, tags[] }
+ *   { id, source, path (source-relative), name, mime, size, modified (ISO),
+ *   version (changes when content changes), folder, tags[] }
+ * Optional: thumbnail(asset) -> small image bytes, used for embedding when cheaper than read().
  *
  * Local folders: tags come from the directory names ("Trips/Japan/2019" -> trips, japan, 2019),
  * the same trick the original bot used.
@@ -44,6 +46,7 @@ export class LocalSource {
           mime,
           size: stat.size,
           modified: stat.mtime.toISOString(),
+          version: `${stat.size}-${Math.floor(stat.mtimeMs)}`,
           folder,
           tags: folder ? folder.toLowerCase().split('/') : [],
         });

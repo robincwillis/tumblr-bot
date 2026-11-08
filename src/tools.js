@@ -37,6 +37,24 @@ export const tools = [
     handler: async (bot, input) => ({ data: await bot.search(input) }),
   },
   {
+    name: 'find_photos_by_content',
+    description: 'Search by what photos LOOK like, not by file or folder names: text like "sunset over water" or "a dog on a beach", and/or similarTo a photo id (find more like this one). Combine with the usual filters. Scores are CLIP similarity: roughly 0.25-0.35 is a good text match, so use relative ranking, and view_photo the top results to confirm. Needs index_photos to have been run.',
+    input: z.object({
+      text: z.string().optional().describe('Describe the photo you want'),
+      similarTo: z.string().optional().describe('Photo id to find look-alikes of'),
+      ...filters,
+      limit: z.number().int().min(1).max(100).optional().describe('Default 20'),
+      minScore: z.number().optional().describe('Drop results below this cosine score'),
+    }).refine((v) => v.text || v.similarTo, 'Give text and/or similarTo'),
+    handler: async (bot, input) => ({ data: await bot.visualSearch(input) }),
+  },
+  {
+    name: 'index_photos',
+    description: 'Build/update the visual search index: embeds photos that are new or changed, in batches. Check `remaining` and call again until it is 0. The first run downloads the model and can take a while for big libraries; later runs only process new photos.',
+    input: z.object({ source: z.string().optional(), limit: z.number().int().min(1).max(2000).optional().describe('Photos per call, default 200') }),
+    handler: async (bot, input) => ({ data: await bot.indexPhotos(input) }),
+  },
+  {
     name: 'random_photos',
     description: 'Pick random photos (never blocked ones). Pass notPostedTo to avoid repeats for a destination. Great for "post something from my trips".',
     input: z.object({ ...filters, count: z.number().int().min(1).max(20).optional().describe('Default 1') }),

@@ -1,6 +1,7 @@
 import { LocalSource } from './local.js';
+import { DropboxSource } from './dropbox.js';
 
-const TYPES = { local: LocalSource };
+const TYPES = { local: LocalSource, dropbox: DropboxSource };
 
 export function createSources(config) {
   const sources = {};

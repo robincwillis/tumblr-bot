@@ -4,3 +4,4 @@ state.json
 outbox/
 .env
 *.log
+vectors.json
