@@ -5,3 +5,6 @@ outbox/
 .env
 *.log
 vectors.json
+bench/queries.json
+bench/results/
+vectors/

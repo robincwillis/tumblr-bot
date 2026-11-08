@@ -83,6 +83,9 @@ photos are processed. Vectors live in `vectors.json` (gitignored); changing
 `embedding.model` rebuilds them. To use a different provider, implement
 `{ model, embedText, embedImage }` (see `src/embeddings/clip.js`).
 
+Planning to try other CLIP/SigLIP models, Voyage, hybrid search and reranking? See
+[docs/embedding-experiments.md](docs/embedding-experiments.md) for the benchmark plan.
+
 CLIP is good at objects, scenes and colours, and weak at counting, reading text and fine
 detail, so the skill has Claude confirm top hits with `view_photo`.
 

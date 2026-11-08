@@ -1,0 +1,10 @@
+{
+  "queries": [
+    { "id": "q1", "type": "object", "text": "a dog on a beach",
+      "relevant": ["main:Trips/Portugal/IMG_2041.jpg", "main:Trips/Portugal/IMG_2057.jpg"] },
+    { "id": "q2", "type": "scene", "text": "narrow street at night with neon signs",
+      "relevant": ["main:Trips/Japan/2019/street.jpg"] },
+    { "id": "q3", "type": "similar", "similarTo": "main:Food/ramen_01.jpg",
+      "relevant": ["main:Food/ramen_03.jpg"] }
+  ]
+}
